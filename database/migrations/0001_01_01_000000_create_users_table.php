@@ -21,6 +21,7 @@ return new class extends Migration
             $table->string('referral_code')->nullable();
             $table->smallInteger('role')->default(0);
             $table->smallInteger('plan')->default(0);
+            $table->timestamp('plan_validity')->nullable();
             $table->smallInteger('status')->default(0);
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');

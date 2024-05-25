@@ -78,4 +78,11 @@ class User extends Authenticatable implements JWTSubject
         return "{$this->first_name} {$this->last_name}";
     }
 
+
+    //relation with plans on coloumn plan_id
+    public function plan()
+    {
+        return $this->belongsTo(Plans::class, 'plan_id');
+    }
+
 }

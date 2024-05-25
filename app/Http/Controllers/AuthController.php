@@ -21,7 +21,7 @@ class AuthController extends Controller
      * @param  \Illuminate\Http\Request  $request
      * @return \Illuminate\Http\JsonResponse
      */
-    public function signup(Request $request)
+    public function register(Request $request)
     {
         // Validate incoming request by using validator and return error message and also check unique constrains according to migration
         $validator = Validator::make($request->all(), [
