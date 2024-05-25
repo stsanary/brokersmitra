@@ -6,6 +6,7 @@ use App\Models\Properties;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class PropertiesController extends Controller
 {
@@ -60,44 +61,45 @@ class PropertiesController extends Controller
 
         // Map CSV headers to database column names
         $columnMapping = [
-            'Customer\'s mobile No.' => 'customer_mobile_no',
-            'Email ID' => 'email_id',
-            'Customer Name' => 'customer_name',
-            'Property For' => 'property_for',
-            'Property Type' => 'property_type',
-            'Price' => 'price',
-            'Booking Amount/Security Amount' => 'booking_amount_security_amount',
-            'Maintenance Charges' => 'maintenance_charges',
-            'ADDRESS' => 'address',
-            'State' => 'state',
-            'City' => 'city',
-            'Location / Colony' => 'location_colony',
-            'Name of Project/Society' => 'name_of_project_society',
-            'Covered Area' => 'covered_area',
-            'CA Unit' => 'ca_unit',
-            'Plot Area' => 'plot_area',
-            'PA Unit' => 'pa_unit',
-            'No of Bedroom' => 'no_of_bedroom',
-            'No of Bathroom' => 'no_of_bathroom',
-            'No. of Balconies' => 'no_of_balconies',
-            'Furnished' => 'furnished',
-            'Possession Status' => 'possession_status',
-            'Age of Const.' => 'age_of_const',
-            'Floor Number' => 'floor_number',
-            'Total Floors in Building' => 'total_floors_in_building',
-            'Personal Pantry - Yes/No' => 'personal_pantry',
-            'Personal Washroom - Yes/No' => 'personal_washroom',
-            'Floors allowed for Construction' => 'floors_allowed_for_construction',
-            'Any Construction done - Yes/No' => 'any_construction_done',
-            'Boundary wall made - Yes/No' => 'boundary_wall_made',
-            'Is in a gated colony - Yes/No' => 'is_in_a_gated_colony',
-            'Transaction Type' => 'transaction_type',
-            'Additional Rooms' => 'additional_rooms',
-            'No. of Car Parking (Covered)' => 'no_of_car_parking_covered',
-            'No of Car Parking (Open)' => 'no_of_car_parking_open',
-            'NUMBER SEATS' => 'number_seats',
-            'TYPE OF COWORKING SPACE' => 'type_of_coworking_space',
-            'AMENITIES' => 'amenities',
+            'customer\'s mobile no.' => 'customer_mobile_no',
+            'email id' => 'email_id',
+            'customer name' => 'customer_name',
+            'property for' => 'property_for',
+            'property type' => 'property_type',
+            'price' => 'price',
+            'booking amount/security amount' => 'booking_amount_security_amount',
+            'maintenance charges' => 'maintenance_charges',
+            'address' => 'address',
+            'state' => 'state',
+            'city' => 'city',
+            'location / colony' => 'location_colony',
+            'name of project/society' => 'name_of_project_society',
+            'covered area' => 'covered_area',
+            'ca unit' => 'ca_unit',
+            'plot area' => 'plot_area',
+            'pa unit' => 'pa_unit',
+            'no of bedroom' => 'no_of_bedroom',
+            'no of bathroom' => 'no_of_bathroom',
+            'no. of balconies' => 'no_of_balconies',
+            'furnished' => 'furnished',
+            'possession status' => 'possession_status',
+            'age of const.' => 'age_of_const',
+            'floor number' => 'floor_number',
+            'total floors in building' => 'total_floors_in_building',
+            'personal pantry - yes/no' => 'personal_pantry',
+            'personal washroom - yes/no' => 'personal_washroom',
+            'floors allowed for construction' => 'floors_allowed_for_construction',
+            'any construction done - yes/no' => 'any_construction_done',
+            'boundary wall made - yes/no' => 'boundary_wall_made',
+            'is in a gated colony - yes/no' => 'is_in_a_gated_colony',
+            'transaction type' => 'transaction_type',
+            'additional rooms' => 'additional_rooms',
+            'no. of car parking (covered)' => 'no_of_car_parking_covered',
+            'no of car parking (open)' => 'no_of_car_parking_open',
+            'number seats' => 'number_seats',
+            'type of coworking space' => 'type_of_coworking_space',
+            'amenities' => 'amenities',
+
         ];
 
         // Check if all headers are present
@@ -116,17 +118,21 @@ class PropertiesController extends Controller
                 }
 
                 while (($row = fgetcsv($file)) !== false) {
-                    $this->storeData($headers,$user_id, $row, $count);
+                    $return = $this->storeData($headers,$user_id, $row,$columnMapping, $count);
+                    if($return->getStatusCode() != 200){
+                        return $return;
+                    }
                     $count++;
                 }
 
                 fclose($file);
             } else {
-                $this->storeData(array_keys($data_via_request), $user_id,$data_via_request);
-                return response()->json(['message' => 'Data stored successfully'], 200);
+               return $this->storeData(array_keys($data_via_request), $user_id,array_values($data_via_request),$columnMapping);
             }
         } catch (\Exception $e) {
-            return response()->json(['message' => $e->getMessage() . 'last Successfull id => ' . $count], 400);
+
+            Log::error("error_property_create",['message' =>$e->getMessage(), 'trace' => $e->getTraceAsString()]);
+            return response()->json(['message' => $e->getMessage() . ' last Successfull id => ' . $count], 400);
         }
         return response()->json(['message' => 'Data stored successfully'], 200);
     }
@@ -139,9 +145,9 @@ class PropertiesController extends Controller
         return $this->storeDataViaFile(null, $data);
     }
 
-    public function storeData($headers,$user_id, $row, $count = 0)
+    public function storeData($headers,$user_id, $row,$columnMapping, $count = 0)
     {
-
+        $data = [];
         // Map CSV values to database column values based on headers
         foreach ($headers as $index => $header) {
             //validations after doing strtolower on all headers
@@ -150,58 +156,58 @@ class PropertiesController extends Controller
 
             if ($header == 'customer\'s mobile no.') {
                 if (!is_numeric($row[$index])) {
-                    return response()->json(['message' => 'Customer\'s mobile No. should be numeric' . 'last Successfull id => ' . $count], 400);
+                    return response()->json(['message' => 'Customer\'s mobile No. should be numeric' . ' last Successfull id => ' . $count], 400);
                 }
             } elseif ($header == 'email id') {
                 if (!filter_var($row[$index], FILTER_VALIDATE_EMAIL)) {
-                    return response()->json(['message' => 'Email ID is not valid' . 'last Successfull id => ' . $count], 400);
+                    return response()->json(['message' => 'Email ID is not valid' . ' last Successfull id => ' . $count], 400);
                 }
             } elseif ($header == 'price' || $header == 'booking amount/security amount' || $header == 'maintenance charges' || $header == 'covered area' || $header == 'plot area') {
                 if (!is_numeric($row[$index])) {
-                    return response()->json(['message' => $header . ' should be numeric' . 'last Successfull id => ' . $count], 400);
+                    return response()->json(['message' => $header . ' should be numeric' . ' last Successfull id => ' . $count], 400);
                 }
             } elseif ($header == 'no of bedroom' || $header == 'no of bathroom' || $header == 'no. of balconies' || $header == 'age of const.' || $header == 'floor number' || $header == 'total floors in building' || $header == 'floors allowed for construction' || $header == 'no. of car parking (covered)' || $header == 'no of car parking (open)' || $header == 'number seats') {
                 if (!is_numeric($row[$index])) {
-                    return response()->json(['message' => $header . ' should be numeric' . 'last Successfull id => ' . $count], 400);
+                    return response()->json(['message' => $header . ' should be numeric' . ' last Successfull id => ' . $count], 400);
                 }
             } elseif ($header == 'furnished') {
                 // check if in array from cont furnished
-                if (!array_key_exists(strtolower($row[$index]), Properties::Furnished)) {
-                    return response()->json(['message' => 'Furnished is not valid' . 'last Successfull id => ' . $count], 400);
+                if (!array_key_exists(strtolower($row[$index]), Properties::FURNISHED)) {
+                    return response()->json(['message' => 'Furnished is not valid' . ' last Successfull id => ' . $count], 400);
                 } else {
-                    $row[$index] = Properties::Furnished[strtolower($row[$index])];
+                    $row[$index] = Properties::FURNISHED[strtolower($row[$index])];
                 }
             } elseif ($header == 'personal pantry - yes/no' || $header == 'personal washroom - yes/no' || $header == 'any construction done - yes/no' || $header == 'boundary wall made - yes/no' || $header == 'is in a gated colony - yes/no') {
                 if (strtolower($row[$index]) != 'yes' && strtolower($row[$index]) != 'no') {
-                    return response()->json(['message' => $header . ' should be either Yes or No' . 'last Successfull id => ' . $count], 400);
+                    return response()->json(['message' => $header . ' should be either Yes or No' . ' last Successfull id => ' . $count], 400);
                 } else {
                     $row[$index] = strtolower($row[$index]) == 'yes' ? true : false;
                 }
             } elseif ($header == 'transaction type') {
                 // check if in array from cont transaction type
                 if (!array_key_exists(strtolower($row[$index]), Properties::TRANSACTION_TYPE)) {
-                    return response()->json(['message' => 'Transaction Type is not valid' . 'last Successfull id => ' . $count], 400);
+                    return response()->json(['message' => 'Transaction Type is not valid' . ' last Successfull id => ' . $count], 400);
                 } else {
                     $row[$index] = Properties::TRANSACTION_TYPE[strtolower($row[$index])];
                 }
             } elseif ($header == 'possession status') {
                 // check if in array from cont possession status
                 if (!array_key_exists(strtolower($row[$index]), Properties::POSSESSION_STATUS)) {
-                    return response()->json(['message' => 'Possession Status is not valid' . 'last Successfull id => ' . $count], 400);
+                    return response()->json(['message' => 'Possession Status is not valid' . ' last Successfull id => ' . $count], 400);
                 } else {
                     $row[$index] = Properties::POSSESSION_STATUS[strtolower($row[$index])];
                 }
             } elseif ($header == 'type of coworking space') {
                 // check if in array from cont type of coworking space
                 if (!array_key_exists(strtolower($row[$index]), Properties::TYPE_OF_COWORKING_SPACE)) {
-                    return response()->json(['message' => 'Type of Coworking Space is not valid' . 'last Successfull id => ' . $count], 400);
+                    return response()->json(['message' => 'Type of Coworking Space is not valid' . ' last Successfull id => ' . $count], 400);
                 } else {
                     $row[$index] = Properties::TYPE_OF_COWORKING_SPACE[strtolower($row[$index])];
                 }
             } elseif ($header == 'ca unit' || $header == 'pa unit') {
                 // check if in array from cont ca unit and pa unit
                 if (!array_key_exists(strtolower($row[$index]), Properties::CA_UNIT) && !array_key_exists(strtolower($row[$index]), Properties::PA_UNIT)) {
-                    return response()->json(['message' => $header . ' is not valid' . 'last Successfull id => ' . $count], 400);
+                    return response()->json(['message' => $header . ' is not valid' . ' last Successfull id => ' . $count], 400);
                 } else {
                     if ($header == 'ca unit') {
                         $row[$index] = Properties::CA_UNIT[strtolower($row[$index])];
@@ -213,25 +219,26 @@ class PropertiesController extends Controller
                 // check if in array from cont amenities
                 $amenities = explode(',', $row[$index]);
                 foreach ($amenities as $amenity) {
-                    if (!in_array(strtolower($amenity), Properties::Amenities)) {
-                        return response()->json(['message' => 'Amenity ' . $amenity . ' is not valid' . 'last Successfull id => ' . $count], 400);
+                    if (!array_key_exists(trim(strtolower($amenity)), Properties::AMENITIES)) {
+                        return response()->json(['message' => 'Amenity ' . $amenity . ' is not valid' . ' last Successfull id => ' . $count], 400);
                     } else {
-                        $row[$index] = json_encode($amenities);
+                        $amen[] = Properties::AMENITIES[$amenity];
                     }
                 }
+                $row[$index] = json_encode($amen);
             } elseif ($header == 'state') {
                 // check if in array from cont state
-                $a = DB::table('states')->where('state', $row[$index])->first();
+                $a = DB::table('state')->where('state', $row[$index])->first();
                 if (!$a) {
-                    return response()->json(['message' => 'State is not valid' . 'last Successfull id => ' . $count], 400);
+                    return response()->json(['message' => 'State is not valid' . ' last Successfull id => ' . $count], 400);
                 } else {
                     $row[$index] = $a->id;
                 }
             } elseif ($header == 'city') {
                 // check if in array from cont city
-                $a = DB::table('cities')->where('name', $row[$index])->first();
+                $a = DB::table('city')->where('name', $row[$index])->first();
                 if (!$a) {
-                    return response()->json(['message' => 'City is not valid' . 'last Successfull id => ' . $count], 400);
+                    return response()->json(['message' => 'City is not valid' . ' last Successfull id => ' . $count], 400);
                 } else {
                     $row[$index] = $a->id;
                 }
@@ -243,11 +250,12 @@ class PropertiesController extends Controller
                 $data[$columnName] = $row[$index];
             }
         }
-
         $data['user_id'] = $user_id;
 
         // Store data into database using Eloquent ORM
-        Properties::create($data);
+        Properties::insert($data);
+
+        return response()->json(['message' => 'Property created successfully'], 200);
     }
 
     public function delete(Request $request)

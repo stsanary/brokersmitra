@@ -30,7 +30,7 @@ Route::group([
 ], function ($router) {
     Route::get('/all', [PropertiesController::class, 'index']);
     Route::post('/createViaCsv', [PropertiesController::class, 'storeDataFromCSV']);
-    Route::get('/create', [PropertiesController::class, 'storeDataViaRequest']);
+    Route::post('/create', [PropertiesController::class, 'storeDataViaRequest']);
     Route::get('/getConditionally', [PropertiesController::class, 'retrievePropertyConditionally']);
     Route::delete('delete/{id}', [PropertiesController::class, 'delete']);
     Route::post('/update/{id}', [PropertiesController::class, 'update']);
