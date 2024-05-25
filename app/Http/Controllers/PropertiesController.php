@@ -154,6 +154,8 @@ class PropertiesController extends Controller
 
             $header = strtolower($header);
 
+            if(!empty($row[$index])){
+
             if ($header == 'customer\'s mobile no.') {
                 if (!is_numeric($row[$index])) {
                     return response()->json(['message' => 'Customer\'s mobile No. should be numeric' . ' last Successfull id => ' . $count], 400);
@@ -243,6 +245,7 @@ class PropertiesController extends Controller
                     $row[$index] = $a->id;
                 }
             }
+        }
 
             $columnName = $columnMapping[$header] ?? null;
             if ($columnName !== null) {
