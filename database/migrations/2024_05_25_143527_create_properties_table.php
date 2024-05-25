@@ -52,7 +52,7 @@ class CreatePropertiesTable extends Migration
             $table->integer('no_of_car_parking_open')->nullable();
             $table->integer('number_seats')->nullable();
             $table->string('type_of_coworking_space')->nullable();
-            $table->user('user_id')->default(1);
+            $table->integer('user_id')->default(1);
             $table->json('amenities')->nullable();
             $table->timestamps();
         });
