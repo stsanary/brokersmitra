@@ -31,7 +31,13 @@ class PropertiesController extends Controller
        $properties = Properties::query();
        foreach ($query_params as $key => $value) {
             if($key == 'amenities'){
-                $properties->whereJsonContains('amenities', $value);
+                $properties->where(function ($query) use ($value) {
+                    foreach ($value as $json_key) {
+                        $query->orWhereRaw("JSON_EXTRACT(your_json_column, '$.\"$json_key\"') = true");
+                    }
+                });
+            }elseif(is_array($value)){
+                $properties->whereIn($key,$value);
             }else{
                 $properties->where($key, $value);
             }
@@ -224,7 +230,7 @@ class PropertiesController extends Controller
                     if (!array_key_exists(trim(strtolower($amenity)), Properties::AMENITIES)) {
                         return response()->json(['message' => 'Amenity ' . $amenity . ' is not valid' . ' last Successfull id => ' . $count], 400);
                     } else {
-                        $amen[] = Properties::AMENITIES[$amenity];
+                        $amen[Properties::AMENITIES[$amenity]] = true;
                     }
                 }
                 $row[$index] = json_encode($amen);
